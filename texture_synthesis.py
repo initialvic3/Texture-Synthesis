@@ -9,10 +9,14 @@ import argparse
 import os
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--image_path", required=True, type=str, help="path of image you want to quilt")
-parser.add_argument("-b", "--block_size", type=int, default=50, help="block size in pixels")
-parser.add_argument("-n", "--num_block", type=int, default=6, help="number of blocks you want")
-parser.add_argument("-m", "--mode", type=str, default='Cut', help="which mode --random placement of block(Random)/Neighbouring blocks constrained by overlap(Best)/Minimum error boundary cut(Cut)")
+parser.add_argument("-i", "--image_path", required=True,
+                    type=str, help="path of image you want to quilt")
+parser.add_argument("-b", "--block_size", type=int,
+                    default=50, help="block size in pixels")
+parser.add_argument("-n", "--num_block", type=int,
+                    default=6, help="number of blocks you want")
+parser.add_argument("-m", "--mode", type=str, default='Cut',
+                    help="which mode --random placement of block(Random)/Neighbouring blocks constrained by overlap(Best)/Minimum error boundary cut(Cut)")
 args = parser.parse_args()
 
 
@@ -23,6 +27,7 @@ def randomPatch(texture, block_size):
 
     return texture[i:i+block_size, j:j+block_size]
 
+
 def L2OverlapDiff(patch, block_size, overlap, res, y, x):
     error = 0
     if x > 0:
@@ -30,7 +35,7 @@ def L2OverlapDiff(patch, block_size, overlap, res, y, x):
         error += np.sum(left**2)
 
     if y > 0:
-        up   = patch[:overlap, :] - res[y:y+overlap, x:x+block_size]
+        up = patch[:overlap, :] - res[y:y+overlap, x:x+block_size]
         error += np.sum(up**2)
 
     if x > 0 and y > 0:
@@ -38,7 +43,7 @@ def L2OverlapDiff(patch, block_size, overlap, res, y, x):
         error -= np.sum(corner**2)
 
     return error
- 
+
 
 def randomBestPatch(texture, block_size, overlap, res, y, x):
     h, w, _ = texture.shape
@@ -52,7 +57,6 @@ def randomBestPatch(texture, block_size, overlap, res, y, x):
 
     i, j = np.unravel_index(np.argmin(errors), errors.shape)
     return texture[i:i+block_size, j:j+block_size]
-
 
 
 def minCutPath(errors):
@@ -80,7 +84,7 @@ def minCutPath(errors):
                     heapq.heappush(pq, (cumError, path + [nextIndex]))
                     seen.add((curDepth, nextIndex))
 
-                    
+
 def minCutPatch(patch, block_size, overlap, res, y, x):
     patch = patch.copy()
     dy, dx, _ = patch.shape
@@ -123,20 +127,27 @@ def quilt(image_path, block_size, num_block, mode, sequence=False):
             if i == 0 and j == 0 or mode == "Random":
                 patch = randomPatch(texture, block_size)
             elif mode == "Best":
-                patch = randomBestPatch(texture, block_size, overlap, res, y, x)
+                patch = randomBestPatch(
+                    texture, block_size, overlap, res, y, x)
             elif mode == "Cut":
-                patch = randomBestPatch(texture, block_size, overlap, res, y, x)
+                patch = randomBestPatch(
+                    texture, block_size, overlap, res, y, x)
                 patch = minCutPatch(patch, block_size, overlap, res, y, x)
-            
+
             res[y:y+block_size, x:x+block_size] = patch
 
     image = Image.fromarray((res * 255).astype(np.uint8))
-    return image
+
+    dirname = os.path.dirname(__file__)
+    filename = os.path.join(dirname, 'results/', image_path.split("/")[-1])
+    image.save(filename, "JPEG")
+    return
+    # return image
+
 
 if __name__ == "__main__":
     image_path = args.image_path
     block_size = args.block_size
     num_block = args.num_block
     mode = args.mode
-    quilt(image_path, block_size, (num_block, num_block), mode).show()
-
+    quilt(image_path, block_size, (num_block, num_block), mode)
